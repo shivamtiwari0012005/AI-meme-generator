@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Meme Generator</title>
+  <style>
+    html, body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(45deg, #5a95b9, #966e9c);
+      margin: 0;
+      padding: 0;
+      color: #000;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .home-page-button {
+      position: fixed;
+      top: 15px;
+      right: 25px;
+      background-color: #f4fafa;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 8px;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 1000;
+    
+    }
+    .home-page-button:hover {
+      background-color: #a0d6fd;
+    }
+    .container {
+      background: #fafafa;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 100%;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    .toggle-group {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .chat-box {
+      flex: 1;
+      overflow-y: auto;
+      background-color: #e0d2d2;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .message {
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+      
+    }
+    .user { color: #040404; }
+    .bot { color: #111111; }
+    .input-group {
+      display: flex;
+      gap: 10px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 16px;
+      border-radius: 10px;
+      font-size: 18px;
+      border: none;
+      background-color: #e0d2d2;
+    }
+    button {
+      padding: 16px 24px;
+      font-size: 16px;
+      background-color: #e0d2d2;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #a0d6fd;
+    }
+    img.generated-img {
+      max-width: 100%;
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <button class="home-page-button" onclick="location.href='/'">Home</button>
+  <div class="container">
+    <h1>AI Meme Generator</h1>
+    <div class="toggle-group">
+      <label>
+        <input type="checkbox" id="toggleMode" checked>
+        Include Images
+      </label>
+    </div>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="input-group">
+      <input type="text" id="userInput" placeholder="Ask something or generate image...">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { GoogleGenAI, Modality } from "https://esm.sh/@google/genai";
+
+    const ai = new GoogleGenAI({ apiKey: "AIzaSyB13N2eM5So1R0z-XyvqqlegZcpVJnbTSk" });
+
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const toggleMode = document.getElementById('toggleMode');
+
+    function addMessage(role, text) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<strong>${role === 'user' ? 'You' : 'Bot'}:</strong> ${text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function addImage(base64Data) {
+      const img = document.createElement('img');
+      img.src = `data:image/png;base64,${base64Data}`;
+      img.className = 'generated-img';
+      chatBox.appendChild(img);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function handleRequest(prompt, includeImage) {
+      const config = includeImage
+        ? { responseModalities: [Modality.TEXT, Modality.IMAGE] }
+        : { responseModalities: [Modality.TEXT] };
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp-image-generation",
+        contents: prompt,
+        config
+      });
+
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          addMessage('bot', part.text);
+        } else if (part.inlineData && includeImage) {
+          addImage(part.inlineData.data);
+        }
+      }
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      const prompt = userInput.value.trim();
+      if (!prompt) return;
+
+      addMessage('user', prompt);
+      userInput.value = '';
+      addMessage('bot', 'Thinking...');
+
+      const lastBotMsg = chatBox.querySelectorAll('.bot');
+      if (lastBotMsg.length > 0) {
+        chatBox.removeChild(lastBotMsg[lastBotMsg.length - 1]);
+      }
+
+      try {
+        await handleRequest(prompt, toggleMode.checked);
+      } catch (err) {
+        addMessage('bot', 'Oops! Something went wrong.');
+      }
+    });
+  </script>
+</body>
+</html>
